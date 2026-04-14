@@ -1,0 +1,22 @@
+{
+  "guilds": {
+    "GUILD_ID_1": {
+      "hour": 7,
+      "minute": 30,
+      "enabled": true,
+      "channelId": "123"
+    },
+    "GUILD_ID_2": {
+      "hour": 9,
+      "minute": 0,
+      "enabled": false,
+      "channelId": "456"
+    },
+    "1315434968092115076": {
+      "hour": 19,
+      "minute": 10,
+      "enabled": true,
+      "channelId": "1315434968092115079"
+    }
+  }
+}

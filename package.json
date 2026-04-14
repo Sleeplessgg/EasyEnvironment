@@ -1,0 +1,19 @@
+{
+  "name": "discord_rp_bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "discord": "^0.8.2",
+    "discord.js": "^14.26.2",
+    "dotenv": "^17.4.2",
+    "js": "^0.1.0",
+    "node-cron": "^4.2.1"
+  }
+}
