@@ -1,6 +1,8 @@
 const cron = require('node-cron');
-const { randomEmbed } = require('../utils/messages');
 const { loadData, saveData } = require('../utils/storage');
+
+const messageService = require('./messageService');
+const { buildRandomMessageEmbed } = require('../utils/buildRandomMessageEmbed');
 
 const jobs = new Map();
 
@@ -29,9 +31,17 @@ function startJob(guildId, channel, hour, minute) {
   }
 
   const job = cron.schedule(cronTime, async () => {
-    const embed = randomEmbed();
+  try {
+    const message = await messageService.getRandomMessageFromGuildService(guildId);
+
+    const embed = buildRandomMessageEmbed(message);
+
     channel.send({ embeds: [embed] });
-  });
+
+  } catch (err) {
+    console.error('Cron error:', err);
+  }
+});
 
   jobs.set(guildId, job);
 }

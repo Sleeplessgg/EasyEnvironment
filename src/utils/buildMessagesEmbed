@@ -1,0 +1,107 @@
+const {
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle
+} = require('discord.js');
+
+async function buildMessagesEmbed(messageService, groupService, guildId, group = null, page = 0) {
+
+  // ---------------- SAFE GROUP FETCH ----------------
+  let groups = [];
+  try {
+    groups = await groupService.getGuildGroups(guildId);
+    if (!Array.isArray(groups)) groups = [];
+  } catch (err) {
+    console.error("groupService error:", err);
+    groups = [];
+  }
+
+  const groupMap = new Map(
+    groups.map(g => [String(g.groupId), g.name])
+  );
+
+  // ---------------- FETCH MESSAGES ----------------
+  let messages = [];
+
+  try {
+    if (group === null) {
+      messages = await messageService.getAllMessagesForGuild(guildId);
+    } else {
+      messages = await messageService.getAllMessagesForGuildAndGroup(guildId, group);
+    }
+
+    if (!Array.isArray(messages)) messages = [];
+  } catch (err) {
+    console.error("messageService error:", err);
+    messages = [];
+  }
+
+  // ---------------- PAGINATION ----------------
+  const pageSize = 10;
+  const totalPages = Math.max(1, Math.ceil(messages.length / pageSize));
+  const safePage = Math.min(Math.max(page, 0), totalPages - 1);
+
+  const start = safePage * pageSize;
+  const slice = messages.slice(start, start + pageSize);
+
+  // ---------------- DESCRIPTION ----------------
+  let description = "";
+
+  if (slice.length === 0) {
+    description = "No messages found.";
+  } else {
+    for (let i = 0; i < slice.length; i++) {
+
+      const msg = slice[i];
+
+      const content = msg.content ?? "No content";
+      const groupName = groupMap.get(String(msg.groupId)) || "Default (0)";
+
+      description += `${start + i + 1}.[${groupName}]\n${content}\n`;
+    }
+  }
+
+  // ---------------- EMBED ----------------
+  const embed = new EmbedBuilder()
+    .setTitle(`Messages (${messages.length})`)
+    .setDescription(description)
+    .setColor(0x2B2D31)
+    .setFooter({
+      text: `Page ${safePage + 1} / ${totalPages} • Total: ${messages.length}`
+    });
+
+  // ---------------- BUTTON ROW ----------------
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('messages_prev')
+      .setLabel('Previous')
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(safePage === 0),
+
+    new ButtonBuilder()
+      .setCustomId('add_message')
+      .setLabel('Add')
+      .setStyle(ButtonStyle.Success),
+
+    new ButtonBuilder()
+      .setCustomId('edit_message')
+      .setLabel('Edit')
+      .setStyle(ButtonStyle.Primary),
+
+    new ButtonBuilder()
+      .setCustomId('delete_message')
+      .setLabel('Delete')
+      .setStyle(ButtonStyle.Danger),
+
+    new ButtonBuilder()
+      .setCustomId('messages_next')
+      .setLabel('Next')
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(safePage >= totalPages - 1)
+  );
+
+  return { embed, row, page: safePage, totalPages };
+}
+
+module.exports = { buildMessagesEmbed };

@@ -279,3 +279,4 @@ description: "**Wetter: **Starkes Gewitter zieht durch den Wald über den Nachmi
 module.exports = {
   randomEmbed: () => seasonList[getCurrentSetIndex()][Math.floor(Math.random() * seasonList[getCurrentSetIndex()].length)]
 };
+
