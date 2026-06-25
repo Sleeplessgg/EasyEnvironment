@@ -29,6 +29,16 @@ db.serialize(() => {
     )
   `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS groupSchedules (
+      guildId TEXT PRIMARY KEY,
+      intervalDays INTEGER NOT NULL,
+      startDate TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 0,
+      activeGroupId INTEGER DEFAULT 0
+    )
+  `);
+
 });
 
 // ======================================================
@@ -212,7 +222,7 @@ function editGroupName(groupId, guildId, name, callback) {
 }
 
 
-//EXPORT RANDOM MESSAGE FOR
+//EXPORT RANDOM MESSAGE FOR SENDING IT IN CHANNEL
 function getRandomMessageFromGuild(guildId, groupId, callback) {
   let query = `
     SELECT *
@@ -230,6 +240,46 @@ function getRandomMessageFromGuild(guildId, groupId, callback) {
   query += ` ORDER BY RANDOM() LIMIT 1`;
 
   db.get(query, params, callback);
+}
+
+
+// ======================================================
+// INTERVALS
+// ======================================================
+function setGroupSchedule(guildId, intervalDays, startDate, enabled, callback) {
+  db.run(
+    `
+    INSERT INTO groupSchedules (guildId, intervalDays, startDate, enabled, activeGroupId)
+    VALUES (?, ?, ?, ?, 0)
+    ON CONFLICT(guildId)
+    DO UPDATE SET
+      intervalDays = excluded.intervalDays,
+      startDate = excluded.startDate,
+      enabled = excluded.enabled
+    `,
+    [guildId, intervalDays, startDate, enabled ? 1 : 0],
+    callback
+  );
+}
+
+function getGroupSchedule(guildId, callback) {
+  db.get(
+    `SELECT * FROM groupSchedules WHERE guildId = ?`,
+    [guildId],
+    callback
+  );
+}
+
+function updateActiveGroup(guildId, groupId, callback) {
+  db.run(
+    `
+    UPDATE groupSchedules
+    SET activeGroupId = ?
+    WHERE guildId = ?
+    `,
+    [groupId, guildId],
+    callback
+  );
 }
 
 // ======================================================
@@ -252,5 +302,10 @@ module.exports = {
   getGroupsByGuild,
   getGroup,
   deleteGroup,
-  editGroupName
+  editGroupName,
+
+  //INTERVALS
+   setGroupSchedule,
+  getGroupSchedule,
+  updateActiveGroup
 };

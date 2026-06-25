@@ -15,41 +15,53 @@ module.exports = {
 
   async execute(interaction) {
 
-    const guildId = interaction.guild.id;
+    try {
+      const guildId = interaction.guild.id;
 
-    const groups = await groupService.getGuildGroups(guildId);
+      const groups = await groupService.getGuildGroups(guildId) || [];
 
-    let description = '';
+      let description = '';
 
-    if (!groups.length) {
-      description = 'No groups found. Create one first.';
-    } else {
-      for (const g of groups) {
-        description += `**${g.groupId}.** ${g.name}\n`;
+      if (groups.length === 0) {
+        description = 'No groups found. Create one first.';
+      } else {
+        for (const g of groups) {
+          description += `**${g.groupId}.** ${g.name}\n`;
+        }
+      }
+
+      const embed = new EmbedBuilder()
+        .setTitle('Message Groups')
+        .setDescription(description)
+        .setColor(0x2B2D31);
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('add_group')
+          .setLabel('Create Group')
+          .setStyle(ButtonStyle.Success),
+
+        new ButtonBuilder()
+          .setCustomId('delete_group')
+          .setLabel('Delete Group')
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      return await interaction.reply({
+        embeds: [embed],
+        components: [row],
+        ephemeral: true
+      });
+
+    } catch (err) {
+      console.error('❌ /groups error:', err);
+
+      if (!interaction.replied) {
+        return interaction.reply({
+          content: '❌ Failed to load groups.',
+          ephemeral: true
+        });
       }
     }
-
-    const embed = new EmbedBuilder()
-      .setTitle('Message Groups')
-      .setDescription(description)
-      .setColor(0x2B2D31);
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('add_group')
-        .setLabel('Create Group')
-        .setStyle(ButtonStyle.Success),
-
-      new ButtonBuilder()
-        .setCustomId('delete_group')
-        .setLabel('Delete Group')
-        .setStyle(ButtonStyle.Danger)
-    );
-
-    return interaction.reply({
-      embeds: [embed],
-      components: [row],
-      ephemeral: true
-    });
   }
 };

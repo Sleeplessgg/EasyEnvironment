@@ -30,7 +30,7 @@ const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
     console.log('🚀 Deploying slash commands...');
 
     await rest.put(
-      Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
+      Routes.applicationCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
       { body: commands }
     );
 

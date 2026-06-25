@@ -6,10 +6,14 @@ const {
 } = require('./databaseService');
 
 function toPromise(fn, ...args) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     fn(...args, (err, result) => {
-      if (err) return reject(err);
-      resolve(result);
+      if (err) {
+        console.error('DB ERROR:', err);
+        return resolve(null); // NEVER reject -> prevents interaction crash
+      }
+
+      resolve(result ?? []);
     });
   });
 }

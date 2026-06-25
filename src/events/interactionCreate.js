@@ -9,11 +9,6 @@ const {
   StringSelectMenuBuilder
 } = require('discord.js');
 
-// -----------------------------
-// TEMP STATE STORAGE (EDIT FLOW)
-// -----------------------------
-const pendingEdits = new Map();
-
 module.exports = {
   name: 'interactionCreate',
   once: false,
@@ -23,6 +18,7 @@ module.exports = {
     try {
 
       const guildId = interaction.guild?.id;
+      if (!guildId) return;
 
       // ======================================================
       // SLASH COMMANDS
@@ -47,11 +43,11 @@ module.exports = {
 
           const options = [
             { label: 'Default (0)', value: '0' },
-            ...groups.map(g => ({
-              label: g.name.slice(0, 100),
+            ...groups.slice(0, 24).map(g => ({
+              label: g.name ?? 'Unnamed',
               value: String(g.groupId)
             }))
-          ].slice(0, 25);
+          ];
 
           const select = new StringSelectMenuBuilder()
             .setCustomId('add_message_select_group')
@@ -70,12 +66,19 @@ module.exports = {
 
           const messages = await messageService.getAllMessagesForGuild(guildId) || [];
 
+          if (!messages.length) {
+            return interaction.reply({
+              content: '❌ No messages found.',
+              ephemeral: true
+            });
+          }
+
           const select = new StringSelectMenuBuilder()
             .setCustomId('edit_select_message')
             .setPlaceholder('Select message')
             .addOptions(
               messages.slice(0, 25).map(m => ({
-                label: m.content.slice(0, 80),
+                label: (m.content ?? '').slice(0, 80),
                 value: String(m.messageId)
               }))
             );
@@ -91,12 +94,19 @@ module.exports = {
 
           const messages = await messageService.getAllMessagesForGuild(guildId) || [];
 
+          if (!messages.length) {
+            return interaction.reply({
+              content: '❌ No messages found.',
+              ephemeral: true
+            });
+          }
+
           const select = new StringSelectMenuBuilder()
             .setCustomId('delete_select_message')
             .setPlaceholder('Select message')
             .addOptions(
               messages.slice(0, 25).map(m => ({
-                label: m.content.slice(0, 80),
+                label: (m.content ?? '').slice(0, 80),
                 value: String(m.messageId)
               }))
             );
@@ -110,22 +120,77 @@ module.exports = {
         // ---------------- DELETE GROUP ----------------
         if (interaction.customId === 'delete_group') {
 
-          const groups = await groupService.getGuildGroups(guildId) || [];
+          try {
+            const groups = await groupService.getGuildGroups(guildId) || [];
 
-          const select = new StringSelectMenuBuilder()
-            .setCustomId('delete_select_group')
-            .setPlaceholder('Select group')
-            .addOptions(
-              groups.slice(0, 25).map(g => ({
-                label: g.name,
-                value: String(g.groupId)
-              }))
+            if (!groups.length) {
+              return interaction.reply({
+                content: '❌ No groups found.',
+                ephemeral: true
+              });
+            }
+
+            const select = new StringSelectMenuBuilder()
+              .setCustomId('delete_select_group')
+              .setPlaceholder('Select group')
+              .addOptions(
+                groups.slice(0, 25).map(g => ({
+                  label: g.name ?? 'Unnamed',
+                  value: String(g.groupId)
+                }))
+              );
+
+            return interaction.reply({
+              components: [new ActionRowBuilder().addComponents(select)],
+              ephemeral: true
+            });
+
+          } catch (err) {
+            console.error('delete_group error:', err);
+
+            return interaction.reply({
+              content: '❌ Failed to load groups.',
+              ephemeral: true
+            });
+          }
+        }
+
+        if (interaction.customId === 'add_group') {
+          try {
+
+            if (!interaction.inGuild()) {
+              return interaction.reply({
+                content: '❌ This only works in servers.',
+                ephemeral: true
+              });
+            }
+
+            const modal = new ModalBuilder()
+              .setCustomId('addGroupModal')
+              .setTitle('Create Group');
+
+            const input = new TextInputBuilder()
+              .setCustomId('groupName')
+              .setLabel('Group Name')
+              .setStyle(TextInputStyle.Short)
+              .setRequired(true);
+
+            modal.addComponents(
+              new ActionRowBuilder().addComponents(input)
             );
 
-          return interaction.reply({
-            components: [new ActionRowBuilder().addComponents(select)],
-            ephemeral: true
-          });
+            return await interaction.showModal(modal);
+
+          } catch (err) {
+            console.error('ADD GROUP MODAL ERROR:', err);
+
+            if (!interaction.replied) {
+              return interaction.reply({
+                content: '❌ Could not open modal.',
+                ephemeral: true
+              });
+            }
+          }
         }
       }
 
@@ -134,7 +199,7 @@ module.exports = {
       // ======================================================
       if (interaction.isStringSelectMenu()) {
 
-        // ---------------- ADD MESSAGE GROUP SELECT ----------------
+        // ---------------- ADD MESSAGE GROUP ----------------
         if (interaction.customId === 'add_message_select_group') {
 
           const groupId = Number(interaction.values[0]);
@@ -167,12 +232,6 @@ module.exports = {
             });
           }
 
-          // store edit session
-          pendingEdits.set(interaction.user.id, {
-            messageId,
-            guildId
-          });
-
           const modal = new ModalBuilder()
             .setCustomId(`editMessageModal:${messageId}`)
             .setTitle('Edit Message');
@@ -181,7 +240,7 @@ module.exports = {
             .setCustomId('content')
             .setLabel('Message Content')
             .setStyle(TextInputStyle.Paragraph)
-            .setValue(message.content)
+            .setValue(message.content ?? '')
             .setRequired(true);
 
           modal.addComponents(new ActionRowBuilder().addComponents(input));
@@ -222,8 +281,6 @@ module.exports = {
 
           await messageService.updateMessageGroup(messageId, groupId);
 
-          pendingEdits.delete(interaction.user.id);
-
           return interaction.update({
             content: '✅ Group updated!',
             components: []
@@ -258,28 +315,20 @@ module.exports = {
 
           await messageService.editExistingMessage(messageId, content);
 
-          // now ask for optional group change AFTER modal
-          const session = pendingEdits.get(interaction.user.id);
-
-          if (!session) {
-            return interaction.reply({
-              content: '✅ Message updated!',
-              ephemeral: true
-            });
-          }
-
           const groups = await groupService.getGuildGroups(guildId) || [];
 
           const select = new StringSelectMenuBuilder()
             .setCustomId(`edit_group_select:${messageId}`)
             .setPlaceholder('Optional: change group')
-            .addOptions([
-              { label: 'Default (0)', value: '0' },
-              ...groups.map(g => ({
-                label: g.name,
-                value: String(g.groupId)
-              }))
-            ].slice(0, 25));
+            .addOptions(
+              [
+                { label: 'Default (0)', value: '0' },
+                ...groups.slice(0, 24).map(g => ({
+                  label: g.name ?? 'Unnamed',
+                  value: String(g.groupId)
+                }))
+              ]
+            );
 
           return interaction.reply({
             content: '✅ Message updated! Optional group change:',
