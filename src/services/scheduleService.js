@@ -1,13 +1,12 @@
 const cron = require('node-cron');
-const { randomEmbed } = require('./messages');
-const { loadData, saveData } = require('./storage');
+const { randomEmbed } = require('../utils/messages');
+const { loadData, saveData } = require('../utils/storage');
 
 const jobs = new Map();
 
 function setSchedule(guildId, channel, hour, minute, enabled = true) {
   const data = loadData();
 
-  // 💾 SAVE TO FILE
   data.guilds[guildId] = {
     hour,
     minute,
@@ -38,8 +37,6 @@ function startJob(guildId, channel, hour, minute) {
 }
 
 function initSchedules(client) {
-  global.client = client;
-
   const data = loadData();
 
   for (const guildId in data.guilds) {
@@ -47,10 +44,11 @@ function initSchedules(client) {
 
     if (!s.enabled) continue;
 
-    const channel = client.channels.cache.get(s.channelId);
-    if (!channel) continue;
-
-    startJob(guildId, channel, s.hour, s.minute);
+    client.channels.fetch(s.channelId)
+      .then(channel => {
+        startJob(guildId, channel, s.hour, s.minute);
+      })
+      .catch(() => {});
   }
 
   console.log("Schedules restored:", Object.keys(data.guilds).length);

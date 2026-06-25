@@ -8,13 +8,7 @@ function getCurrentSetIndex() {
   const diffMs = now - START_DATE;
   const weeks = Math.floor(diffMs / (1000 * 60 * 60 * 24 * 7));
 
-  const setIndex = Math.floor(weeks / WEEKS_PER_SET) % SET_COUNT;
-
-  return setIndex;
+  return Math.floor(weeks / WEEKS_PER_SET) % SET_COUNT;
 }
 
-
-// index 0 = SPRING, 1 = SUMMER, 2 = AUTUMN, 3 = WINTER
-module.exports = {
-  getCurrentSetIndex
-};
+module.exports = { getCurrentSetIndex };

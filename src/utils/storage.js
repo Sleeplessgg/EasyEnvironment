@@ -1,6 +1,7 @@
+const path = require('path');
 const fs = require('fs');
 
-const FILE = './saved_schedules.json';
+const FILE = path.join(__dirname, '../data/saved_schedules.json');
 
 function loadData() {
   if (!fs.existsSync(FILE)) return { guilds: {} };
